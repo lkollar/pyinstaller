@@ -9,6 +9,10 @@
 
 from __future__ import print_function
 
+from difflib import SequenceMatcher
+
+from PyInstaller.lib.modulegraph.modulegraph import NamespacePackage, Package
+
 """
 Build packages using spec files.
 
@@ -488,6 +492,7 @@ class Analysis(Target):
             for module in self.graph.flatten(start=self.graph._top_script_node):
                 # Select only valid types that haven't been hooked yet.
                 module_type = type(module).__name__
+                logger.debug("Processing module: %s - type: %s", module, module_type)
                 module_name = module.identifier
                 if (module_type not in VALID_MODULE_TYPES_BUT_SCRIPTS or
                     module_name in all_hooked_module_names):
@@ -501,6 +506,8 @@ class Analysis(Target):
                 if module_name in module_hook_cache:
                     # For each hook script for this module...
                     for module_hook in module_hook_cache[module_name]:
+                        logger.debug("Found hook for module %s: %s", module_name,
+                                     module_hook)
                         # We're not done yet -- we need another pass to apply
                         # hooks to any imports produced by running this hook.
                         done = False
@@ -517,16 +524,22 @@ class Analysis(Target):
                     # Prevent this module's hooks from being run again.
                     all_hooked_module_names.add(module_name)
                 else:
-                    modules_unhooked.add(module_name)
+                    logger.debug("Could not find hook for module: %s", module_name)
+                    modules_unhooked.add((module_name, module_type))
 
             # Apply default hooks to anything not covered by standard hooks.
-            for module_name in modules_unhooked:
+            for module_name, module_type in modules_unhooked:
                 # Apply a default hook to the package this module is in.
                 #
                 # Transform ``package.module.submodule`` into ``package``.
                 candidate_package = module_name.split('.', 1)[0]
                 # Attempt to get the ``__file__`` attribute for this
                 # package.
+                if module_type == 'Package':
+                    # import pdb; pdb.set_trace()
+                    candidate_package = module_name
+
+                in_stdlib = False
                 try:
                     file_attr = get_module_file_attribute(candidate_package)
                 except ImportError:
@@ -538,13 +551,22 @@ class Analysis(Target):
                     # Transform ``/path/to/python/package/__init__.py`` to
                     # ``/path/to/python/``, then check to see if that path
                     # matches the Python standard library.
-                    in_stdlib = (os.path.dirname(
-                                 os.path.dirname(file_attr)) == STDLIB_PATH)
+
+                    module_subdir = candidate_package.replace('.', os.path.sep)
+                    if os.path.join(STDLIB_PATH, module_subdir) == os.path.dirname(file_attr):
+                        in_stdlib = True
+                        logger.info("%s is in the standard library", candidate_package)
+
                 # See if a default hook should be applied to this package.
                 if (in_stdlib or
                     candidate_package in all_hooked_module_names or
                     not is_package(candidate_package)):
+                    logger.debug("Not applying default hook to %s", candidate_package)
+
                     continue
+
+                logger.debug("Processing default hook for %s - candidate package: %s",
+                             module_name, candidate_package)
 
                 # We're not done yet -- we need another pass to apply hooks to
                 # any imports produced by running this hook.
@@ -554,6 +576,7 @@ class Analysis(Target):
                 # reachable from ``self._top_script_node``. Therefore, create a
                 # default ModuleHook for this module, not its containing
                 # ``candidate_package``.
+
                 module_hook = ModuleHook(
                     module_graph=module_hook_cache.module_graph,
                     module_name=module_name,
