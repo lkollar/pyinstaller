@@ -541,24 +541,24 @@ class Analysis(Target):
                 if candidate_package in packages_unhooked_seen:
                     continue
 
-                in_stdlib = False
                 # Attempt to get the ``__file__`` attribute for this
                 # package.
+                in_stdlib = False
                 try:
                     file_attr = get_module_file_attribute(candidate_package)
                 except ImportError:
                     # Namespace packages don't have a ``__file__``
                     # attribute, which produces an ImportError. Assume that
                     # any namespace package is not in the standard library.
-                    in_stdlib = False
+                    pass
                 else:
                     # Transform ``/path/to/python/package/__init__.py`` to
                     # ``/path/to/python/``, then check to see if that path
                     # matches the Python standard library.
                     module_subdir = candidate_package.replace('.', os.path.sep)
                     if os.path.join(STDLIB_PATH, module_subdir) == os.path.dirname(file_attr):
-                        in_stdlib = True
                         logger.info("%s is in the standard library", candidate_package)
+                        in_stdlib = True
 
                 # Avoid processing this package again
                 packages_unhooked_seen.add(candidate_package)
