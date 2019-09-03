@@ -557,7 +557,6 @@ class Analysis(Target):
                     # matches the Python standard library.
                     module_subdir = candidate_package.replace('.', os.path.sep)
                     if os.path.join(STDLIB_PATH, module_subdir) == os.path.dirname(file_attr):
-                        logger.info("%s is in the standard library", candidate_package)
                         in_stdlib = True
 
                 # Avoid processing this package again
@@ -567,11 +566,9 @@ class Analysis(Target):
                 if (in_stdlib or
                     candidate_package in all_hooked_module_names or
                     not is_package(candidate_package)):
-                    logger.debug("Not applying default hook to %s", candidate_package)
-
                     continue
 
-                logger.debug("Processing default hook for %s - candidate package: %s",
+                logger.debug("Applying default hook for %s - candidate package: %s",
                              module_name, candidate_package)
 
                 # We're not done yet -- we need another pass to apply hooks to
