@@ -488,6 +488,7 @@ class Analysis(Target):
         while not done:
             done = True
             modules_unhooked = set()
+            packages_unhooked_seen = set()
             # Iterate through all modules referenced by the top script.
             for module in self.graph.flatten(start=self.graph._top_script_node):
                 # Select only valid types that haven't been hooked yet.
@@ -537,6 +538,9 @@ class Analysis(Target):
                 else:
                     candidate_package = module_name.split('.', 1)[0]
 
+                if candidate_package in packages_unhooked_seen:
+                    continue
+
                 in_stdlib = False
                 # Attempt to get the ``__file__`` attribute for this
                 # package.
@@ -555,6 +559,9 @@ class Analysis(Target):
                     if os.path.join(STDLIB_PATH, module_subdir) == os.path.dirname(file_attr):
                         in_stdlib = True
                         logger.info("%s is in the standard library", candidate_package)
+
+                # Avoid processing this package again
+                packages_unhooked_seen.add(candidate_package)
 
                 # See if a default hook should be applied to this package.
                 if (in_stdlib or
