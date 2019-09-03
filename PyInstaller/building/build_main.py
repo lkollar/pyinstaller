@@ -532,14 +532,14 @@ class Analysis(Target):
                 # Apply a default hook to the package this module is in.
                 #
                 # Transform ``package.module.submodule`` into ``package``.
-                candidate_package = module_name.split('.', 1)[0]
-                # Attempt to get the ``__file__`` attribute for this
-                # package.
                 if module_type == 'Package':
-                    # import pdb; pdb.set_trace()
                     candidate_package = module_name
+                else:
+                    candidate_package = module_name.split('.', 1)[0]
 
                 in_stdlib = False
+                # Attempt to get the ``__file__`` attribute for this
+                # package.
                 try:
                     file_attr = get_module_file_attribute(candidate_package)
                 except ImportError:
@@ -551,7 +551,6 @@ class Analysis(Target):
                     # Transform ``/path/to/python/package/__init__.py`` to
                     # ``/path/to/python/``, then check to see if that path
                     # matches the Python standard library.
-
                     module_subdir = candidate_package.replace('.', os.path.sep)
                     if os.path.join(STDLIB_PATH, module_subdir) == os.path.dirname(file_attr):
                         in_stdlib = True
@@ -582,8 +581,7 @@ class Analysis(Target):
                     module_name=module_name,
                     hook_filename=os.path.join(get_importhooks_dir(),
                                                'default-hook.py'),
-                    hook_module_name_prefix=module_hook_cache.
-                        _hook_module_name_prefix)
+                    hook_module_name_prefix=module_hook_cache._hook_module_name_prefix)
                 # Run it.
                 logger.info('Running default hook for package %s.',
                             candidate_package)
